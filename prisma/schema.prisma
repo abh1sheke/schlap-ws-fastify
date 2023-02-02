@@ -1,0 +1,103 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String? @db.Text
+    session_state     String?
+    user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@map("accounts")
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("sessions")
+}
+
+model User {
+    id            String    @id @default(cuid())
+    createdAt     DateTime  @default(now())
+    username      String?   @unique
+    email         String?   @unique
+    password      String?
+    emailVerified DateTime?
+    image         String?
+    accounts      Account[]
+    sessions      Session[]
+    profile       Profile?
+
+    @@unique([id, username])
+    @@unique([id, username, image])
+    @@map("users")
+}
+
+model Profile {
+    id                     String          @id
+    createdAt              DateTime        @default(now())
+    username               String
+    image                  String?
+    bio                    String?
+    user                   User?           @relation(fields: [id, username, image], references: [id, username, image], onDelete: Cascade)
+    sentFriendRequests     FriendRequest[] @relation("sender")
+    receivedFriendRequests FriendRequest[] @relation("recipient")
+    friends                Friend[]        @relation("friend")
+    friendOf               Friend[]        @relation("friendof")
+
+    @@unique([id, username])
+    @@unique([id, username, image])
+    @@map("profiles")
+}
+
+model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+    @@map("verificationtokens")
+}
+
+model FriendRequest {
+    id          BigInt   @id @unique @default(autoincrement())
+    createdAt   DateTime @default(now())
+    sender      Profile  @relation(fields: [senderId], references: [id], "sender", onDelete: Cascade)
+    senderId    String
+    recipient   Profile  @relation(fields: [recipientId], references: [id], "recipient", onDelete: Cascade)
+    recipientId String
+
+    @@map("friendrequests")
+}
+
+model Friend {
+    id         BigInt   @id @unique @default(autoincrement())
+    createdAt  DateTime @default(now())
+    friend     Profile  @relation("friend", fields: [friendId], references: [id], onDelete: Cascade)
+    friendId   String
+    friendOf   Profile  @relation("friendof", fields: [friendOfId], references: [id], onDelete: Cascade)
+    friendOfId String
+
+    @@map("friends")
+}
+
